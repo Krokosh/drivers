@@ -73,7 +73,7 @@ static const struct snd_pcm_hardware snd_chatbird_pcm_hw = {
 	.rate_min		= 8000,
 	.rate_max		= 48000,
 	.channels_min		= 1,
-	.channels_max		= 1,
+	.channels_max		= 2,
 	.buffer_bytes_max	= 44 * PERIODS,
 	.period_bytes_min	= 44,
 	.period_bytes_max	= 44,
@@ -87,6 +87,7 @@ static int snd_chatbird_pcm_open(struct snd_pcm_substream *ss)
   struct snd_pcm_runtime *runtime = ss->runtime;
   printk("snd_chatbird_pcm_open++\n");
   runtime->hw = snd_chatbird_pcm_hw;  
+  chatbird_control_40(chatbird_dev, 0xbc00, 0x1388);
   printk("snd_chatbird_pcm_open--\n");
 }
 
@@ -112,10 +113,13 @@ static int snd_chatbird_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
   case SNDRV_PCM_TRIGGER_START:
   case SNDRV_PCM_TRIGGER_RESUME:
     printk("Start\n");
+    chatbird_control_40(chatbird_dev, 0xbc05, 0x1388);
+    
     break;
   case SNDRV_PCM_TRIGGER_STOP:
   case SNDRV_PCM_TRIGGER_SUSPEND:
     printk("Stop\n");
+    chatbird_control_40(chatbird_dev, 0xbc03, 0x1388);
     break;
   default:
     ret = -EINVAL;
@@ -176,12 +180,12 @@ static int snd_chatbird_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
   char buf[44];	
 
   int nSent;
-  printk("snd_chatbird_pcm_copy_user++\n");
+  //printk("snd_chatbird_pcm_copy_user++\n");
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0)
   count*=2;
 #endif
 
-      printk("Sending %d bytes\n",count);
+  //  printk("Sending %d bytes\n",count);
   for(i=0;i<count;i+=44)
     {
       copy_from_user(buf,(unsigned char *)dst+i,44);
