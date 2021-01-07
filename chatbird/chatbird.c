@@ -11,8 +11,8 @@
 #define USB_CHATBIRD_VENDOR_ID 0x03ee
 #define USB_CHATBIRD_PRODUCT_ID 0xff01
 
-#define PERIODS 256
-#define SAMPLERATE		48000
+#define PERIODS 65536
+#define SAMPLERATE		11025
 
 struct chatbird_dev {
   struct usb_interface	*interface;  struct usb_device *device;
@@ -23,6 +23,7 @@ struct chatbird_dev {
   char usb_path[32];
   struct snd_card *card;
   struct snd_pcm *pcm;
+  unsigned long hwptr;
 };
 
 static void chatbird_irq(struct urb *urb)
@@ -65,14 +66,12 @@ int chatbird_control_40(struct chatbird_dev *chatbird, __u16 value, __u16 index)
 static struct snd_device_ops ops = { };
 
 static const struct snd_pcm_hardware snd_chatbird_pcm_hw = {
-	.info			= (SNDRV_PCM_INFO_MMAP |
-				   SNDRV_PCM_INFO_INTERLEAVED |
-				   SNDRV_PCM_INFO_BLOCK_TRANSFER |
-				   SNDRV_PCM_INFO_MMAP_VALID),
+	.info			= (SNDRV_PCM_INFO_INTERLEAVED |
+				   SNDRV_PCM_INFO_BLOCK_TRANSFER ),
 	.formats		= SNDRV_PCM_FMTBIT_S16,
-	.rates			= SNDRV_PCM_RATE_48000,
-	.rate_min		= SAMPLERATE,
-	.rate_max		= SAMPLERATE,
+	//.rates			= SNDRV_PCM_RATE_11025,
+	.rate_min		= 8000,
+	.rate_max		= 48000,
 	.channels_min		= 1,
 	.channels_max		= 1,
 	.buffer_bytes_max	= 44 * PERIODS,
@@ -112,11 +111,11 @@ static int snd_chatbird_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
   switch (cmd) {
   case SNDRV_PCM_TRIGGER_START:
   case SNDRV_PCM_TRIGGER_RESUME:
-    
+    printk("Start\n");
     break;
   case SNDRV_PCM_TRIGGER_STOP:
   case SNDRV_PCM_TRIGGER_SUSPEND:
-
+    printk("Stop\n");
     break;
   default:
     ret = -EINVAL;
@@ -137,14 +136,16 @@ static int snd_chatbird_pcm_copy_kernel(struct snd_pcm_substream *ss, int channe
   printk("snd_chatbird_pcm_copy_kernel++\n");
 
   printk("Sending %x bytes\n",count);
-  for(j=0;j<count;j++)
-  for(i=0;i<PERIODS;i++)
-    usb_interrupt_msg(chatbird_dev->device,
-		      usb_sndintpipe(chatbird_dev->device,2),
-		      (unsigned char *)buf+i*44,
-		      44,
-		      &nSent,
-		      2 * HZ);
+  for(j=0;j<count;j+=44)
+    {
+      usb_interrupt_msg(chatbird_dev->device,
+			usb_sndintpipe(chatbird_dev->device,2),
+			(unsigned char *)buf+i*44,
+			44,
+			&nSent,
+			2 * HZ);
+      chatbird_dev->hwptr+=44;
+    }
   return 0;
 }
 
@@ -161,7 +162,8 @@ static snd_pcm_uframes_t snd_chatbird_pcm_pointer(struct snd_pcm_substream *ss)
   size_t ptr;
   printk("snd_chatbird_pcm_pointer++\n");
   struct chatbird_dev *chatbird_dev = snd_pcm_substream_chip(ss);
-  bytes_to_frames(ss->runtime, ptr);
+  ptr=bytes_to_frames(ss->runtime, chatbird_dev->hwptr);
+  printk("hw %d, pointer %d\n",chatbird_dev->hwptr, ptr);
   return ptr;
 }
 
@@ -175,18 +177,23 @@ static int snd_chatbird_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
 
   int nSent;
   printk("snd_chatbird_pcm_copy_user++\n");
+#if LINUX_VERSION_CODE < KERNEL_VERSION(4,15,0)
+  count*=2;
+#endif
 
-  for(i=0;i<count;i+=22)
-    {
-      copy_from_user(buf,(unsigned char *)dst+i*44,44);
       printk("Sending %d bytes\n",count);
+  for(i=0;i<count;i+=44)
+    {
+      copy_from_user(buf,(unsigned char *)dst+i,44);
+
       usb_interrupt_msg(chatbird_dev->device,
 			usb_sndintpipe(chatbird_dev->device,2),
 			buf,
 			44,
 			&nSent,
 			2 * HZ);
-      udelay(1000);
+      //mdelay(1);
+      chatbird_dev->hwptr+=44;
     }
   return 0;
 }
@@ -220,7 +227,7 @@ static const struct snd_pcm_ops snd_chatbird_pcm_ops = {
   .ioctl = snd_chatbird_pcm_ioctl,
   .hw_params =	snd_chatbird_pcm_hw_params,
   .hw_free =	snd_chatbird_pcm_hw_free,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5,9,0)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(4,15,0)
   .copy_user = snd_chatbird_pcm_copy_user,
   .copy_kernel = snd_chatbird_pcm_copy_kernel,
 #else
@@ -311,8 +318,9 @@ static int snd_chatbird_volume_put(struct snd_kcontrol *kcontrol,
 }
 
 static const struct snd_kcontrol_new snd_chatbird_volume = {
-	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "Volume",
+	.iface = SNDRV_CTL_ELEM_IFACE_HWDEP,
+	.name = "Master Playback Switch",
+	.index=0,
 	.info = snd_chatbird_volume_info,
 	.get = snd_chatbird_volume_get,
 	.put = snd_chatbird_volume_put,
@@ -347,7 +355,7 @@ static int chatbird_probe(struct usb_interface *interface,
     }
   usb_set_intfdata(interface, chatbird);
   usb_make_path(device, chatbird->usb_path, sizeof(chatbird->usb_path));
-
+  chatbird->hwptr=0;
   
   chatbird->data = usb_alloc_coherent(device, 44, GFP_ATOMIC, &chatbird->data_dma);
   if (!chatbird->data)
