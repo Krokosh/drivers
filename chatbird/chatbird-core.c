@@ -8,6 +8,10 @@
 #define USB_CHATBIRD_VENDOR_ID 0x03ee
 #define USB_CHATBIRD_PRODUCT_ID 0xff01
 
+#ifndef KBUILD_MODNAME
+#define KBUILD_MODNAME "chatbird"
+#endif
+
 int chatbird_send_44bytes(struct chatbird_dev *chatbird, char *buf)
 {
   int nSent;
