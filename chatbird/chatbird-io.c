@@ -2,6 +2,7 @@
 #include <linux/module.h>
 #include <linux/usb.h>
 #include "chatbird.h"
+#include "chatbird_ioctl.h"
 
 extern struct usb_driver chatbird_driver;
 
@@ -59,11 +60,29 @@ static ssize_t chatbird_write(struct file *file, const char *user_buffer,
   struct chatbird_dev *dev;
   int retval = 0;
   struct urb *urb = NULL;
-  char *buf = NULL;
-  
+  char buf[44];
+  int todo=count;
   dev = file->private_data;
+  int i;
+  printk("Sending %d bytes\n",count);
+  for(i=0;i<count;i+=44)
+    {
+      copy_from_user(buf,(unsigned char *)user_buffer+i,min(44,todo));
+      retval+=chatbird_send_44bytes(dev,buf);
+      todo-=44;
+    } 
+}
 
-  
+static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+  struct chatbird_dev *dev;
+  dev = file->private_data;
+  switch(cmd)
+    {
+    case CHATBIRD_IOCSETMOTOR:
+      chatbird_control_40(dev, 0xbc00+arg, 0x1388);
+      return 0;
+    }
 }
 
 static const struct file_operations chatbird_fops = {
@@ -71,6 +90,7 @@ static const struct file_operations chatbird_fops = {
   //.read =	chatbird_read,
   .write =	chatbird_write,
   .open =	chatbird_open,
+  .unlocked_ioctl =	chatbird_ioctl,
   .release =	chatbird_release,
   //.flush =	chatbird_flush,
   //.llseek =	noop_llseek,
