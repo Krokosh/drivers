@@ -15,7 +15,10 @@ modules_install:
 clean:
 	rm -rf *.o *~ core .depend .*.cmd *.ko *.mod.c .tmp_versions Module.symvers
 else
-obj-m:= chatbird.o 
+chatbird-y := chatbird-core.o chatburd-io.o
+snd-chatbird-y := chatbird-core.o chatbird-alsa.o
+
+obj-m:= snd-chatbird.o
 endif
 
 
