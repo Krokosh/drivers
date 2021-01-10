@@ -1,1 +1,0 @@
-cmd_/home/crok/drivers/chatbird/Module.symvers := sed 's/ko$$/o/' /home/crok/drivers/chatbird/modules.order | scripts/mod/modpost -m    -o /home/crok/drivers/chatbird/Module.symvers -e -i Module.symvers   -T -

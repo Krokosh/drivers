@@ -1,1 +1,0 @@
-cmd_/home/crok/drivers/chatbird/chatbird.ko := ld -r -m elf_x86_64 --build-id=sha1  -T /usr/src/linux-headers-5.9.0-5-common/scripts/module-common.lds -o /home/crok/drivers/chatbird/chatbird.ko /home/crok/drivers/chatbird/chatbird.o /home/crok/drivers/chatbird/chatbird.mod.o;  true
