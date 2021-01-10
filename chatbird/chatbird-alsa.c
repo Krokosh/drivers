@@ -85,20 +85,13 @@ static int snd_chatbird_pcm_copy_kernel(struct snd_pcm_substream *ss, int channe
 {
   struct chatbird_dev *chatbird_dev = snd_pcm_substream_chip(ss);
   int err, i,j;
-  int nSent;
   printk("snd_chatbird_pcm_copy_kernel++\n");
   struct snd_pcm_runtime *runtime = ss->runtime;
 
   printk("Sending %x bytes\n",count);
   for(i=0;i<count;i+=44)
     {
-      usb_interrupt_msg(chatbird_dev->device,
-			usb_sndintpipe(chatbird_dev->device,2),
-			(unsigned char *)buf+i,
-			44,
-			&nSent,
-			2 * HZ);
-      chatbird_dev->hwptr+=44;
+      chatbird_dev->hwptr+=chatbird_send_44bytes(chatbird_dev,buf+i);
     }
   chatbird_dev->hwptr%=runtime->buffer_size;
   return 0;
@@ -140,17 +133,9 @@ static int snd_chatbird_pcm_copy_user(struct snd_pcm_substream *ss, int channel,
   for(i=0;i<count;i+=44)
     {
       copy_from_user(buf,(unsigned char *)dst+i,44);
-
-      usb_interrupt_msg(chatbird_dev->device,
-			usb_sndintpipe(chatbird_dev->device,2),
-			buf,
-			44,
-			&nSent,
-			2 * HZ);
-      //mdelay(1);
-      chatbird_dev->hwptr+=44;
-      chatbird_dev->hwptr%=runtime->buffer_size;
+      chatbird_dev->hwptr+=chatbird_send_44bytes(chatbird_dev,buf);
     }
+  chatbird_dev->hwptr%=runtime->buffer_size;
   return 0;
 }
 
@@ -234,7 +219,7 @@ static int chatbird_snd_pcm_init(struct chatbird_dev *chatbird_dev)
   return 0;
 }
 
-int chatbird_init(struct chatbird_dev *chatbird)
+int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface)
 {
   int ret = snd_card_new(&chatbird->device->dev,
 		     SNDRV_DEFAULT_IDX1, "chatbird", THIS_MODULE, 0,
