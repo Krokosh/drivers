@@ -15,4 +15,4 @@ int chatbird_control_40(struct chatbird_dev *chatbird, __u16 value, __u16 index)
 int chatbird_send_44bytes(struct chatbird_dev *chatbird, char *buf);
 
 int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface);
-int chatbird_deinit(struct chatbird_dev *chatbird);
+int chatbird_deinit(struct chatbird_dev *chatbird,struct usb_interface *interface);
