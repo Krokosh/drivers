@@ -249,7 +249,7 @@ int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface)
   return ret;
 }
 
-int chatbird_deinit(struct chatbird_dev *chatbird)
+int chatbird_deinit(struct chatbird_dev *chatbird, struct usb_interface *interface)
 {
   snd_card_free(chatbird->card);
 }

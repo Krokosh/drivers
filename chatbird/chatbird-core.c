@@ -14,13 +14,18 @@
 
 int chatbird_send_44bytes(struct chatbird_dev *chatbird, char *buf)
 {
-  int nSent;
-  usb_interrupt_msg(chatbird->device,
+  int nRet, nSent;
+  nRet=usb_interrupt_msg(chatbird->device,
 		    usb_sndintpipe(chatbird->device,2),
 		    buf,
 		    44,
 		    &nSent,
 		    2 * HZ);
+  if(nRet)
+    {
+      printk("interrupt returned %d, sent %d\n",nRet,nSent);
+      return nRet;
+    }
   return nSent;
 }
 
@@ -165,7 +170,7 @@ static void chatbird_disconnect(struct usb_interface *interface)
   usb_set_intfdata(interface, NULL);
   if(chatbird)
     {
-      chatbird_deinit(chatbird);
+      chatbird_deinit(chatbird,interface);
       usb_kill_urb(chatbird->irq);
       usb_free_urb(chatbird->irq);
       usb_free_coherent(interface_to_usbdev(interface), 44, chatbird->data, chatbird->data_dma);

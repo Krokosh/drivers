@@ -1,6 +1,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <asm/ioctl.h>
 #include "chatbird.h"
 #include "chatbird_ioctl.h"
 
@@ -14,6 +15,7 @@ static int chatbird_open(struct inode *inode, struct file *file)
   int retval = 0;
   
   subminor = iminor(inode);
+  printk("chatbird_open++(%d)\n",subminor);
   
   interface = usb_find_interface(&chatbird_driver, subminor);
   if (!interface) {
@@ -28,15 +30,17 @@ static int chatbird_open(struct inode *inode, struct file *file)
     retval = -ENODEV;
     goto exit;
   }
-  
+  printk("Fond %x\n",dev);
+#ifdef USE_AUTOPM
   retval = usb_autopm_get_interface(interface);
   if (retval)
     goto exit;
-  
+#endif 
   /* save our object in the file's private structure */
   file->private_data = dev;
   
 exit:
+  printk("chatbird_open--: %d\n",retval);
   return retval;
 }
 
@@ -48,40 +52,59 @@ static int chatbird_release(struct inode *inode, struct file *file)
   if (dev == NULL)
     return -ENODEV;
   
+#ifdef USE_AUTOPM
   /* allow the device to be autosuspended */
   usb_autopm_put_interface(dev->interface);
-  
+#endif
   return 0;
 }
 
-static ssize_t chatbird_write(struct file *file, const char *user_buffer,
+static ssize_t chatbird_write(struct file *file, const char __user *user_buffer,
 			      size_t count, loff_t *ppos)
 {
   struct chatbird_dev *dev;
   int retval = 0;
-  struct urb *urb = NULL;
-  char buf[44];
   int todo=count;
   dev = file->private_data;
   int i;
-  printk("Sending %d bytes\n",count);
+
+  //rintk("Sending %d bytes\n",count);
   for(i=0;i<count;i+=44)
     {
-      copy_from_user(buf,(unsigned char *)user_buffer+i,min(44,todo));
-      retval+=chatbird_send_44bytes(dev,buf);
-      todo-=44;
-    } 
+      int ret;
+      copy_from_user(dev->data,(unsigned char *)user_buffer+i,min(44,todo));
+      ret=chatbird_send_44bytes(dev,dev->data);
+      if(ret<0)
+	{
+	  printk("Send returned %d\n",ret);
+	}
+      retval+=ret;
+      todo-=ret;
+    }
+  return retval;
 }
 
 static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
   struct chatbird_dev *dev;
+  int val;
   dev = file->private_data;
+  void __user *argp = (void __user *)arg;
+  copy_from_user(&val,argp,sizeof(int));
+  
+  printk("Expecting IOCTL %x\n",CHATBIRD_IOCSETMOTOR);
   switch(cmd)
     {
     case CHATBIRD_IOCSETMOTOR:
-      chatbird_control_40(dev, 0xbc00+arg, 0x1388);
-      return 0;
+      {
+	int val;
+	copy_from_user(&val,argp,sizeof(int));
+	printk("Set motor %x\n",val);
+	chatbird_control_40(dev, 0xbc00+val, 0x1388);
+	return 0;
+      }
+      default:
+	printk("Unknown IOCTL %x:%x/%x\n",cmd,arg,val);
     }
 }
 
@@ -109,22 +132,24 @@ static struct usb_class_driver chatbird_class = {
 
 int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface)
 {
+  printk("chatbird_init(%x,%x)\n",chatbird,interface);
   int retval = usb_register_dev(interface, &chatbird_class);
   if (retval) {
     /* something prevented us from registering this driver */
     dev_err(&interface->dev,
 	    "Not able to get a minor for this device.\n");
-    usb_set_intfdata(interface, NULL);
     return retval;
   }
   
   /* let the user know what node this device is now attached to */
   dev_info(&interface->dev,
-	   "USB Chatbirdeton device now attached to USBChatbird-%d",
+	   "USB Chatbird device now attached to USBChatbird-%d",
 	   interface->minor);
   return 0;
 }
 
-int chatbird_deinit(struct chatbird_dev *chatbird)
+int chatbird_deinit(struct chatbird_dev *chatbird,struct usb_interface *interface)
 {
+  printk("chatbird_deinit(%x,%x)\n",chatbird,interface);
+  usb_deregister_dev(interface, &chatbird_class);
 }
