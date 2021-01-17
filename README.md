@@ -32,3 +32,11 @@ Bottom 6 LSBs seem to be some sort of mode selector:
 6 : nothing
 7 : nothing
 8 and above: nothing.
+
+chatbird-tools
+--------------
+
+This will be for utilities that I write for the driver.
+
+speak is a simple speech synthesis program that mimics the original idea of the device (to a certain extent).
+testmotors sends ioctls for testing.  Currently requires a rebuild for each command.
