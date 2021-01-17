@@ -39,14 +39,16 @@ static int snd_chatbird_pcm_open(struct snd_pcm_substream *ss)
   runtime->hw = snd_chatbird_pcm_hw;  
   chatbird_control_40(chatbird_dev, 0xbc00, 0x1388);
   printk("snd_chatbird_pcm_open--\n");
+  return 0;
 }
 
 static int snd_chatbird_pcm_close(struct snd_pcm_substream *ss)
 {
   struct chatbird_dev *chatbird_dev = snd_pcm_substream_chip(ss);
   printk("snd_chatbird_pcm_close++\n");
-
+  
   printk("snd_chatbird_pcm_close--\n");
+  return 0;
 }
 
 static int snd_chatbird_pcm_trigger(struct snd_pcm_substream *ss, int cmd)
@@ -251,5 +253,5 @@ int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface)
 
 int chatbird_deinit(struct chatbird_dev *chatbird, struct usb_interface *interface)
 {
-  snd_card_free(chatbird->card);
+  return snd_card_free(chatbird->card);
 }

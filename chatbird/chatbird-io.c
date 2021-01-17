@@ -100,11 +100,12 @@ static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	int val;
 	copy_from_user(&val,argp,sizeof(int));
 	printk("Set motor %x\n",val);
-	chatbird_control_40(dev, 0xbc00+val, 0x1388);
+	chatbird_control_40(dev, val, 0x1388);
 	return 0;
       }
       default:
 	printk("Unknown IOCTL %x:%x/%x\n",cmd,arg,val);
+	return -EINVAL;
     }
 }
 
@@ -152,4 +153,5 @@ int chatbird_deinit(struct chatbird_dev *chatbird,struct usb_interface *interfac
 {
   printk("chatbird_deinit(%x,%x)\n",chatbird,interface);
   usb_deregister_dev(interface, &chatbird_class);
+  return 0;
 }

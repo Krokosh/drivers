@@ -1,13 +1,11 @@
 //speech synth 
-//using espeak 
-//Written by Bill Heaster
+//using espeak and chatbird
+//Based on example written by Bill Heaster
+//Ported to Mitsumi "Chatbird" PC Mascot by Stephen Crocker.
 /*
  * This is the most minimalistic approach to getting espeak running with the C api
  *
- * 
- * compile with gcc -W -o myEspeak myEspeak.c -lespeak
- * 
- * This was tested in ubuntu 15.10 I had to download the following packages. 
+ * This was tested in Debian 10 I had to download the following packages. 
  * espeak-data
  * libespeak-dev
  * 
@@ -49,11 +47,24 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events);
 */
 //don't delete this callback function.
 
+int flags=0x8000;
+
 int SetMotor(int val)
 {
-  printf("Sending IOCTL %x/%x\n",CHATBIRD_IOCSETMOTOR,val);
-  ioctl(fp,CHATBIRD_IOCSETMOTOR,&val);
+  flags&=0xffc0;
+  flags|=val;
+  //printf("Sending IOCTL %x/%x\n",CHATBIRD_IOCSETMOTOR,flags);
+  ioctl(fp,CHATBIRD_IOCSETMOTOR,&flags);
 }
+
+int SetLEDs(int val)
+{
+  flags&=0xff3f;
+  flags|=val<<6;
+  ioctl(fp,CHATBIRD_IOCSETMOTOR,&flags);
+}
+
+int ledstate=0;
 
 int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 {
@@ -62,6 +73,9 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
   if(fp==NULL)
     printf("Failed to open: %d\n",errno);
   SetMotor(3);
+  ledstate++;
+  ledstate%=4;
+  SetLEDs(ledstate);
   for(i=0;i<numsamples;i+=44)
     {
       short buf[44];
@@ -82,6 +96,8 @@ int main(int argc, char *argv[])
     espeak_ERROR speakErr;
 
     fp=open("/dev/chatbird2",O_RDWR);
+    SetMotor(4);
+    usleep(400000);
     //must be called before any other functions
     //espeak initialize
     int nRet=espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS,0,NULL,espeakINITIALIZE_PHONEME_EVENTS);
@@ -95,7 +111,7 @@ int main(int argc, char *argv[])
     espeak_SetParameter(espeakPITCH,60,0);
     espeak_SetParameter(espeakRANGE,100,0);
     SetMotor(5);
-
+    espeak_SetVoiceByName("english_wmids");
     espeak_SetSynthCallback(SynthCallback);
     
     //make some text to spit out
@@ -111,6 +127,7 @@ int main(int argc, char *argv[])
         puts("error on synth creation\n");
               
     }
+    SetLEDs(0);
     SetMotor(5);
     usleep(2000000);
     SetMotor(1);
