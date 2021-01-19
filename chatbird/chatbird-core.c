@@ -142,11 +142,20 @@ static int chatbird_probe(struct usb_interface *interface,
   chatbird->irq = usb_alloc_urb(0, GFP_KERNEL);
   if (!chatbird->irq)
     return -ENOMEM;
-  usb_fill_int_urb(chatbird->irq, chatbird->device, 0x81, chatbird->data,
+  usb_fill_int_urb(chatbird->irq,
+		   chatbird->device,
+		   usb_rcvintpipe(chatbird->device,0x81),
+		   chatbird->data,
 		   1,
 		   chatbird_irq, chatbird, 8);
   chatbird->irq->transfer_dma = chatbird->data_dma;
   chatbird->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
+  
+  ret = usb_submit_urb(chatbird->irq , GFP_KERNEL);
+  if (ret)
+    {
+      return ret;
+    }
   
   #endif
   for(i=0;i<256;i++)

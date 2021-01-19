@@ -17,7 +17,7 @@ Motors are operated using control messages of type 0x40 (custom) request 1.
 tcpdump showed the following requests:
 value 0xaf05, index 0x0037
 value 0xbc0X, index 0x1388 where X=1,3 or 5.
-Function of index is currently unclear.
+Bottom 13 bits of index define motor duration.  4096=16 seconds.
 value seems to be arranged as follows:
 Bit 15 (MSB) must be set for motor operation.
 Bit 7 enables the red LED

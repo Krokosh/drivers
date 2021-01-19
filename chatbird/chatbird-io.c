@@ -30,7 +30,7 @@ static int chatbird_open(struct inode *inode, struct file *file)
     retval = -ENODEV;
     goto exit;
   }
-  printk("Fond %x\n",dev);
+  printk("Found %x\n",dev);
 #ifdef USE_AUTOPM
   retval = usb_autopm_get_interface(interface);
   if (retval)
@@ -100,12 +100,18 @@ static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long ar
 	int val;
 	copy_from_user(&val,argp,sizeof(int));
 	printk("Set motor %x\n",val);
-	chatbird_control_40(dev, val, 0x1388);
+	chatbird_control_40(dev, val&0xffff, val>>16);
 	return 0;
       }
-      default:
-	printk("Unknown IOCTL %x:%x/%x\n",cmd,arg,val);
-	return -EINVAL;
+    case CHATBIRD_IOCGETBUTTONS:
+      {
+	int val=dev->data[0];
+	copy_to_user(argp,&val,sizeof(int));
+	return 0;
+      }
+    default:
+      printk("Unknown IOCTL %x:%x/%x\n",cmd,arg,val);
+      return -EINVAL;
     }
 }
 

@@ -12,6 +12,7 @@
  * */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -47,20 +48,21 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events);
 */
 //don't delete this callback function.
 
-int flags=0x8000;
+int flags=0x01008000;
 
-int SetMotor(int val)
+int SetMotor(int val,int length)
 {
-  flags&=0xffc0;
-  flags|=val;
+  flags&=0x000000c0;
+  flags|=length<<16;
+  flags|=0x8000|val;
   //printf("Sending IOCTL %x/%x\n",CHATBIRD_IOCSETMOTOR,flags);
   ioctl(fp,CHATBIRD_IOCSETMOTOR,&flags);
 }
 
 int SetLEDs(int val)
 {
-  flags&=0xff3f;
-  flags|=val<<6;
+  flags&=0xffffff3f;
+  flags=val<<6;
   ioctl(fp,CHATBIRD_IOCSETMOTOR,&flags);
 }
 
@@ -70,23 +72,43 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 {
   int i;
   printf("received %d samples\n",numsamples);
-  if(fp==NULL)
+  if(fp==0)
     printf("Failed to open: %d\n",errno);
-  SetMotor(3);
-  ledstate++;
-  ledstate%=4;
-  SetLEDs(ledstate);
+  SetMotor(3,numsamples);
+  ledstate=0;
+  int average=0;
   for(i=0;i<numsamples;i+=44)
     {
       short buf[44];
       int j;
+      average=0;
       for(j=0;j<22;j++)
-	buf[j]=wav[i+j*2];
+	{
+	  buf[j]=wav[i+j*2];
+	  average+=abs(buf[j]);
+	}
+      average/=22;
       int nRet=write(fp,buf,44);
+      if(average>1024)
+	ledstate|=1;
+      if(average>2048)
+	ledstate|=2;
+      printf("Average %x\n",average);
+      if(((i/44)&3)==0)
+	SetLEDs(ledstate);
       //printf("Write=%d/%d\n",nRet,errno);
       //fflush(fp);
     }
-  SetMotor(1);
+  if(numsamples)
+    average/=22*numsamples;
+  else
+    average=0;
+  printf("Average %x\n",average);
+  if(average>8)
+    ledstate|=1;
+  if(average>12)
+    ledstate|=2;
+  //SetLEDs(ledstate);
   return 0;
 }
 
@@ -96,8 +118,8 @@ int main(int argc, char *argv[])
     espeak_ERROR speakErr;
 
     fp=open("/dev/chatbird2",O_RDWR);
-    SetMotor(4);
-    usleep(400000);
+    SetMotor(4,128);
+    usleep(500000);
     //must be called before any other functions
     //espeak initialize
     int nRet=espeak_Initialize(AUDIO_OUTPUT_SYNCHRONOUS,0,NULL,espeakINITIALIZE_PHONEME_EVENTS);
@@ -110,8 +132,8 @@ int main(int argc, char *argv[])
     espeak_SetParameter(espeakVOLUME,25,0);
     espeak_SetParameter(espeakPITCH,60,0);
     espeak_SetParameter(espeakRANGE,100,0);
-    SetMotor(5);
-    espeak_SetVoiceByName("english_wmids");
+    SetMotor(5,128);
+    espeak_SetVoiceByName("english-north");
     espeak_SetSynthCallback(SynthCallback);
     
     //make some text to spit out
@@ -128,9 +150,7 @@ int main(int argc, char *argv[])
               
     }
     SetLEDs(0);
-    SetMotor(5);
-    usleep(2000000);
-    SetMotor(1);
+    SetMotor(5,256);
     close(fp);
     
 
