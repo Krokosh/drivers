@@ -1,6 +1,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/usb.h>
+#include <linux/uaccess.h>
 #include <asm/ioctl.h>
 #include "chatbird.h"
 #include "chatbird_ioctl.h"

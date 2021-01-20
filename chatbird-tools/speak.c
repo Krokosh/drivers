@@ -77,6 +77,7 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
   SetMotor(3,numsamples);
   ledstate=0;
   int average=0;
+
   for(i=0;i<numsamples;i+=44)
     {
       short buf[44];
@@ -93,31 +94,43 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 	ledstate|=1;
       if(average>2048)
 	ledstate|=2;
-      printf("Average %x\n",average);
+      //printf("Average %x\n",average);
       if(((i/44)&3)==0)
 	SetLEDs(ledstate);
       //printf("Write=%d/%d\n",nRet,errno);
       //fflush(fp);
     }
-  if(numsamples)
-    average/=22*numsamples;
-  else
-    average=0;
-  printf("Average %x\n",average);
-  if(average>8)
-    ledstate|=1;
-  if(average>12)
-    ledstate|=2;
-  //SetLEDs(ledstate);
   return 0;
 }
 
 
 int main(int argc, char *argv[])
 {
+    int i;
     espeak_ERROR speakErr;
+    char *szDev="/dev/chatbird0";
+    char *szText="Hello, this is a test!";
+    char *szVoice="english-rp";
 
-    fp=open("/dev/chatbird2",O_RDWR);
+
+    for(i=0;i<argc;i++)
+      if(argv[i][0]=='-')
+	switch(argv[i][1])
+        {
+          case 'd':
+            szDev=argv[++i];
+            break;
+
+          case 't':
+            szText=argv[++i];
+            break;
+
+          case 'v':
+            szVoice=argv[++i];
+            break;
+        }
+
+    fp=open(szDev,O_RDWR);
     SetMotor(4,128);
     usleep(500000);
     //must be called before any other functions
@@ -133,18 +146,14 @@ int main(int argc, char *argv[])
     espeak_SetParameter(espeakPITCH,60,0);
     espeak_SetParameter(espeakRANGE,100,0);
     SetMotor(5,128);
-    espeak_SetVoiceByName("english-north");
+    espeak_SetVoiceByName(szVoice);
     espeak_SetSynthCallback(SynthCallback);
     
     //make some text to spit out
     char textBuff[255]={0};
 
-    if(argc)
-      strcpy(textBuff, argv[1]);
-    else
-      strcpy(textBuff, "Hello, this is a test!");
     usleep(2000000);
-    if((speakErr=espeak_Synth(textBuff, strlen(textBuff), 0,0,0,espeakCHARS_AUTO,NULL,NULL))!= EE_OK)
+    if((speakErr=espeak_Synth(szText, strlen(szText), 0,0,0,espeakCHARS_AUTO,NULL,NULL))!= EE_OK)
     {
         puts("error on synth creation\n");
               
