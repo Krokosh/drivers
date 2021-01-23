@@ -9,6 +9,7 @@ struct chatbird_dev {
   struct snd_card *card;
   struct snd_pcm *pcm;
   unsigned long hwptr;
+  unsigned char buttonstate;
 };
   
 int chatbird_control_40(struct chatbird_dev *chatbird, __u16 value, __u16 index);

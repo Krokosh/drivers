@@ -31,8 +31,12 @@ int chatbird_send_44bytes(struct chatbird_dev *chatbird, char *buf)
 
 static void chatbird_irq(struct urb *urb)
 {
+  int i;
   struct chatbird_dev *chatbird = urb->context;
   printk("Interrupt %x",chatbird->data[0]);
+  for(i=0;i<4;i++)
+    if(chatbird->data[0]&(1<<i))
+      chatbird->buttonstate|=(1<<i);
   switch (urb->status)
     {
     case 0:			/* success */

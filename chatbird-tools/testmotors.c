@@ -8,9 +8,20 @@
 
 int main(int argc, char *argv[])
 {
+  int i;
+  char *szDev="/dev/chatbird0";
+  
+  for(i=0;i<argc;i++)
+    if(argv[i][0]=='-')
+      switch(argv[i][1])
+        {
+	case 'd':
+	  szDev=argv[++i];
+	  break;
+	}
   int val=0x01008000;
-  int i=0;
-  int fp=open("/dev/chatbird2",O_RDWR);
+  i=0;
+  int fp=open(szDev,O_RDWR);
   int tmp;
   do
     {

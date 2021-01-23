@@ -93,7 +93,6 @@ static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long ar
   void __user *argp = (void __user *)arg;
   copy_from_user(&val,argp,sizeof(int));
   
-  printk("Expecting IOCTL %x\n",CHATBIRD_IOCSETMOTOR);
   switch(cmd)
     {
     case CHATBIRD_IOCSETMOTOR:
@@ -106,7 +105,9 @@ static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long ar
       }
     case CHATBIRD_IOCGETBUTTONS:
       {
-	int val=dev->data[0];
+	int val=dev->buttonstate;
+	dev->buttonstate=0;
+	printk("Get buttons %x\n",val);
 	copy_to_user(argp,&val,sizeof(int));
 	return 0;
       }
