@@ -22,6 +22,8 @@
 #include <sys/ioctl.h>
 #include "../chatbird/chatbird_ioctl.h"
 
+#define NUM_SAMPLES (21*21*44)
+
 int fp;
 
 /* Must be called before any synthesis functions are called.
@@ -68,6 +70,12 @@ int SetLEDs(int val)
 
 int ledstate=0;
 
+short ringbuffer[NUM_SAMPLES];
+
+int ringbufferin=0;
+int ringbufferout=0;
+int samplestodo=0;
+
 int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 {
   int i;
@@ -78,27 +86,33 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
   ledstate=0;
   int average=0;
 
-  for(i=0;i<numsamples;i+=44)
+  samplestodo+=numsamples/2;
+  
+  for(i=0;i<numsamples;i+=2)
     {
-      short buf[44];
-      int j;
-      average=0;
-      for(j=0;j<22;j++)
-	{
-	  buf[j]=wav[i+j*2];
-	  average+=abs(buf[j]);
-	}
-      average/=22;
-      int nRet=write(fp,buf,44);
-      if(average>1024)
-	ledstate|=1;
-      if(average>2048)
-	ledstate|=2;
-      //printf("Average %x\n",average);
-      if(((i/44)&3)==0)
-	SetLEDs(ledstate);
-      //printf("Write=%d/%d\n",nRet,errno);
-      //fflush(fp);
+      ringbuffer[ringbufferin]=wav[i];
+      average+=abs(ringbuffer[ringbufferin]);
+      ringbufferin++;
+      if(ringbufferin>=NUM_SAMPLES)
+	ringbufferin=0;
+    }
+  if(numsamples)
+    average/=numsamples;
+  if(average>200)
+    ledstate|=1;
+  if(average>300)
+    ledstate|=2;
+  printf("Average %x\n",average);
+  
+  SetLEDs(ledstate);
+
+  while(samplestodo>22)
+    {
+      int nRet=write(fp,&ringbuffer[ringbufferout],44);
+      ringbufferout+=22;
+      if(ringbufferout>=NUM_SAMPLES)
+	ringbufferout=0;
+      samplestodo-=22;
     }
   return 0;
 }
