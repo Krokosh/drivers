@@ -79,7 +79,7 @@ int samplestodo=0;
 int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
 {
   int i;
-  printf("received %d samples\n",numsamples);
+  //printf("received %d samples\n",numsamples);
   if(fp==0)
     printf("Failed to open: %d\n",errno);
   SetMotor(3,numsamples);
@@ -102,7 +102,7 @@ int SynthCallback(short *wav, int numsamples, espeak_EVENT *events)
     ledstate|=1;
   if(average>300)
     ledstate|=2;
-  printf("Average %x\n",average);
+  //printf("Average %x\n",average);
   
   SetLEDs(ledstate);
 
