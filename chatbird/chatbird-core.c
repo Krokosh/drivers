@@ -23,7 +23,7 @@ int chatbird_send_44bytes(struct chatbird_dev *chatbird, char *buf)
 		    2 * HZ);
   if(nRet)
     {
-      printk("interrupt returned %d, sent %d\n",nRet,nSent);
+      dev_dbg(&chatbird->device->dev,"interrupt returned %d, sent %d\n",nRet,nSent);
       return nRet;
     }
   return nSent;
@@ -33,7 +33,7 @@ static void chatbird_irq(struct urb *urb)
 {
   int i;
   struct chatbird_dev *chatbird = urb->context;
-  printk("Interrupt %x",chatbird->data[0]);
+  dev_dbg(&chatbird->device->dev,"Interrupt %x",chatbird->data[0]);
   for(i=0;i<4;i++)
     if(chatbird->data[0]&(1<<i))
       chatbird->buttonstate|=(1<<i);
@@ -55,7 +55,7 @@ static void chatbird_irq(struct urb *urb)
     
 int chatbird_control_40(struct chatbird_dev *chatbird, __u16 value, __u16 index)
 {
-  printk("chatbird type 40 value %x index %x\n",value, index);
+  dev_dbg(&chatbird->device->dev,"chatbird type 40 value %x index %x\n",value, index);
   int nRet=usb_control_msg(chatbird->device,
 		  usb_sndctrlpipe(chatbird->device, 0),
 		  0x01, // request 1
@@ -66,7 +66,7 @@ int chatbird_control_40(struct chatbird_dev *chatbird, __u16 value, __u16 index)
 		  0x00,
 		  2 * HZ);
   if(nRet)
-    printk("control returned %d\n",nRet);
+    dev_dbg(&chatbird->device->dev,"control returned %d\n",nRet);
   return nRet;
 }
 
@@ -78,7 +78,7 @@ static int chatbird_probe(struct usb_interface *interface,
   int ret;
   int i;
   int nSent;
-  printk("chatbird_probe: %x:%x, %x.%x, %x.%x.%x/%x.%x.%x %x\n",
+  dev_dbg(&chatbird->device->dev,"chatbird_probe: %x:%x, %x.%x, %x.%x.%x/%x.%x.%x %x\n",
 	 id->idVendor,id->idProduct, id->bcdDevice_lo, id->bcdDevice_hi,
 	 id->bDeviceClass,id->bDeviceSubClass,id->bDeviceProtocol,
 	 id->bInterfaceClass,id->bInterfaceSubClass,id->bInterfaceProtocol,
@@ -87,13 +87,13 @@ static int chatbird_probe(struct usb_interface *interface,
   chatbird=devm_kzalloc(&device->dev,sizeof (struct chatbird_dev), GFP_KERNEL);
   if (!chatbird)
     return -ENOMEM;
-  printk("Allocated structure\n");
+  dev_dbg(&chatbird->device->dev,"Allocated structure\n");
   chatbird->device = device;
   chatbird->interface=interface;
   ret = usb_set_interface(chatbird->device, 0, 0);
   if (ret < 0)
     {
-      printk("cannot set interface.\n");
+      dev_dbg(&chatbird->device->dev,"cannot set interface.\n");
       return ret;
     }
   usb_set_intfdata(interface, chatbird);
@@ -103,7 +103,7 @@ static int chatbird_probe(struct usb_interface *interface,
   chatbird->data = usb_alloc_coherent(device, 44, GFP_ATOMIC, &chatbird->data_dma);
   if (!chatbird->data)
     return -ENOMEM;
-  printk("Allocated DMA\n");
+  dev_dbg(&chatbird->device->dev,"Allocated DMA\n");
   #if 1
   usb_control_msg(chatbird->device,
 		  usb_sndctrlpipe(chatbird->device, 0),
@@ -117,7 +117,7 @@ static int chatbird_probe(struct usb_interface *interface,
   #else
   usb_set_configuration(chatbird->device,1);
   #endif
-  printk("Set configuration\n");
+  dev_dbg(&chatbird->device->dev,"Set configuration\n");
   chatbird_control_40(chatbird, 0xaf05, 0x0037);
   msleep_interruptible(500);
   chatbird_control_40(chatbird, 0xbc00, 0x1388);

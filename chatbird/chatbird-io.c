@@ -16,7 +16,7 @@ static int chatbird_open(struct inode *inode, struct file *file)
   int retval = 0;
   
   subminor = iminor(inode);
-  printk("chatbird_open++(%d)\n",subminor);
+  dev_dbg(&dev->device->dev,"chatbird_open++(%d)\n",subminor);
   
   interface = usb_find_interface(&chatbird_driver, subminor);
   if (!interface) {
@@ -31,7 +31,7 @@ static int chatbird_open(struct inode *inode, struct file *file)
     retval = -ENODEV;
     goto exit;
   }
-  printk("Found %x\n",dev);
+  dev_dbg(&dev->device->dev,"Found %x\n",dev);
 #ifdef USE_AUTOPM
   retval = usb_autopm_get_interface(interface);
   if (retval)
@@ -41,7 +41,7 @@ static int chatbird_open(struct inode *inode, struct file *file)
   file->private_data = dev;
   
 exit:
-  printk("chatbird_open--: %d\n",retval);
+  dev_dbg(&dev->device->dev,"chatbird_open--: %d\n",retval);
   return retval;
 }
 
@@ -77,7 +77,7 @@ static ssize_t chatbird_write(struct file *file, const char __user *user_buffer,
       ret=chatbird_send_44bytes(dev,dev->data);
       if(ret<0)
 	{
-	  printk("Send returned %d\n",ret);
+	  dev_err(&dev->device->dev,"Send returned %d\n",ret);
 	}
       retval+=ret;
       todo-=ret;
@@ -99,7 +99,7 @@ static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long ar
       {
 	int val;
 	copy_from_user(&val,argp,sizeof(int));
-	printk("Set motor %x\n",val);
+	dev_dbg(&dev->device->dev,"Set motor %x\n",val);
 	chatbird_control_40(dev, val&0xffff, val>>16);
 	return 0;
       }
@@ -107,12 +107,12 @@ static long chatbird_ioctl(struct file *file, unsigned int cmd, unsigned long ar
       {
 	int val=dev->buttonstate;
 	dev->buttonstate=0;
-	printk("Get buttons %x\n",val);
+	dev_dbg(&dev->device->dev,"Get buttons %x\n",val);
 	copy_to_user(argp,&val,sizeof(int));
 	return 0;
       }
     default:
-      printk("Unknown IOCTL %x:%x/%x\n",cmd,arg,val);
+      dev_err(&dev->device->dev,"Unknown IOCTL %x:%x/%x\n",cmd,arg,val);
       return -EINVAL;
     }
 }
@@ -141,7 +141,7 @@ static struct usb_class_driver chatbird_class = {
 
 int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface)
 {
-  printk("chatbird_init(%x,%x)\n",chatbird,interface);
+  dev_dbg(&chatbird->device->dev,"chatbird_init(%x,%x)\n",chatbird,interface);
   int retval = usb_register_dev(interface, &chatbird_class);
   if (retval) {
     /* something prevented us from registering this driver */
@@ -159,7 +159,7 @@ int chatbird_init(struct chatbird_dev *chatbird,struct usb_interface *interface)
 
 int chatbird_deinit(struct chatbird_dev *chatbird,struct usb_interface *interface)
 {
-  printk("chatbird_deinit(%x,%x)\n",chatbird,interface);
+  dev_dbg(&chatbird->device->dev,"chatbird_deinit(%x,%x)\n",chatbird,interface);
   usb_deregister_dev(interface, &chatbird_class);
   return 0;
 }
