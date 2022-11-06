@@ -7,7 +7,7 @@ chatbird
 Linux driver for the Mitsumi PC Mascot or Chatbird.
 Uses ALSA for the speaker.  Controls for wings and head TBD.
 
-Rough summry of what I have been able to reverse angineer:
+Rough summry of what I have been able to reverse engineer:
 
 Sound is 16 bit 16kHz signed linear PCM split into 44-byte (22 word) packets.
 Sound frames are sent using interrupt write.
